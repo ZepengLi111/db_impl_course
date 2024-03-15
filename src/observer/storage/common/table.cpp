@@ -15,6 +15,7 @@ See the Mulan PSL v2 for more details. */
 #include <limits.h>
 #include <string.h>
 #include <algorithm>
+#include <cstdio>
 
 #include "common/defs.h"
 #include "storage/common/table.h"
@@ -126,13 +127,27 @@ RC Table::destroy(const char* dir) {
   RC rc = sync();
   if(rc != RC::SUCCESS) return rc;
 
+  data_buffer_pool_->close_file(file_id_);
+  std::string data_file = table_data_file(dir, this->name());
+  remove(data_file.c_str());
+  std::string meta_file = table_meta_file(dir, this->name());
+  remove(meta_file.c_str());
+
+  const int index_num = table_meta_.index_num();
+  for (int i = 0; i < index_num; i++) {
+    const IndexMeta *index_meta = table_meta_.index(i);
+    std::string index_file = table_index_file(dir, this->name(), index_meta->name());
+    remove(index_file.c_str());
+  }
+
   //TODO 删除描述表元数据的文件
 
   //TODO 删除表数据文件
 
   //TODO 清理所有的索引相关文件数据与索引元数据
 
-  return RC::GENERIC_ERROR;
+//  return RC::GENERIC_ERROR;
+  return RC::SUCCESS;
 }
 
 
