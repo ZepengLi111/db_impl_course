@@ -52,7 +52,34 @@ Frame *BPManager::alloc(int file_desc, PageNum page_num) {
    * 提示：调用disk_buffer_pool->flush_block()来刷新到磁盘
    * 提示：调用lrucache.victim(victim, new_buffer_tag) 来将vitim页给替换了。
    */
-  
+
+  BufferTag bufferTag = std::make_pair(file_desc, page_num);
+  if (lrucache.size() < size) {
+    int frame_idx;
+    for (int i = 0; i < size; i++)
+    {
+      if (!allocated[i]) {
+        frame_idx = i;
+        lrucache.put(bufferTag, frame_idx);
+        allocated[i] = true;
+        return &frame[frame_idx];
+      }
+    }
+  }
+  BufferTag victim_key;
+  auto rc = lrucache.getVictim(&victim_key, not_pinned, (void*)(this));
+  if (rc == RC::SUCCESS)
+  {
+    int frame_id;
+    auto rc_get = lrucache.get(victim_key, &frame_id);
+    if (rc_get == RC::SUCCESS) {
+      disk_buffer_pool->flush_block(&frame[frame_id]);
+      auto rc_victim = lrucache.victim(victim_key, bufferTag);
+      if (rc_victim == RC::SUCCESS) {
+        return &frame[frame_id];
+      }
+    }
+  }
   return nullptr;
 }
 
